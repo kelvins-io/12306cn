@@ -1,0 +1,139 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: ticket-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ticket
+    ports:
+      - "12345:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ticket"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: ticket-redis
+    ports:
+      - "16380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  inventory:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.inventory
+    container_name: ticket-inventory
+    environment:
+      INVENTORY_PORT: "8082"
+      DATABASE_DSN: "host=postgres user=postgres password=postgres dbname=ticket port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+      REDIS_ADDR: "redis:6379"
+      CORS_ORIGINS: "*"
+    ports:
+      - "10003:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  query:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.query
+    container_name: ticket-query
+    environment:
+      QUERY_PORT: "8081"
+      DATABASE_DSN: "host=postgres user=postgres password=postgres dbname=ticket port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+      REDIS_ADDR: "redis:6379"
+      INVENTORY_URL: "http://inventory:8082"
+      CORS_ORIGINS: "*"
+      RISK_QUERY_PER_MIN: "60"
+    ports:
+      - "10002:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      inventory:
+        condition: service_started
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ticket-backend
+    environment:
+      SERVER_PORT: "8080"
+      DATABASE_DSN: "host=postgres user=postgres password=postgres dbname=ticket port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+      REDIS_ADDR: "redis:6379"
+      INVENTORY_URL: "http://inventory:8082"
+      JWT_SECRET: "12306cn-docker-secret"
+      JWT_EXPIRE_HOURS: "72"
+      ORDER_HOLD_MINUTES: "15"
+      BOOK_RATE_PER_SEC: "5"
+      BOOK_QUEUE_WAIT_SEC: "30"
+      BOOK_RATE_MIN: "1"
+      BOOK_RATE_MAX: "20"
+      RISK_ORDER_PER_MIN: "8"
+      RISK_QUERY_PER_MIN: "60"
+      PAYMENT_PROVIDER: "mock"
+      RESCHEDULE_MAX_TIMES: "2"
+      RESCHEDULE_HOURS_BEFORE: "2"
+      CORS_ORIGINS: "*"
+    ports:
+      - "10001:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      inventory:
+        condition: service_started
+      query:
+        condition: service_started
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.gateway
+    container_name: ticket-gateway
+    environment:
+      GATEWAY_PORT: "8090"
+      BACKEND_URL: "http://backend:8080"
+      QUERY_URL: "http://query:8081"
+      REDIS_ADDR: "redis:6379"
+      BOOK_RATE_PER_SEC: "5"
+      BOOK_RATE_MIN: "1"
+      BOOK_RATE_MAX: "20"
+      CORS_ORIGINS: "*"
+    ports:
+      - "10004:8090"
+    depends_on:
+      - backend
+      - query
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: /api
+    container_name: ticket-frontend
+    ports:
+      - "5473:80"
+    depends_on:
+      - gateway
+
+volumes:
+  pgdata:

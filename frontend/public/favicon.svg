@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="12306cn">
+  <defs>
+    <linearGradient id="g" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e23a3f"/>
+      <stop offset="1" stop-color="#8b0f14"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#g)"/>
+  <!-- ticket body -->
+  <rect x="12" y="18" width="40" height="28" rx="5" fill="#fff"/>
+  <path d="M12 32h40" stroke="#c8161d" stroke-width="2" stroke-dasharray="3 3" opacity=".55"/>
+  <!-- train mark -->
+  <rect x="18" y="23" width="18" height="10" rx="2" fill="#c8161d"/>
+  <circle cx="22" cy="36" r="2.2" fill="#c8161d"/>
+  <circle cx="32" cy="36" r="2.2" fill="#c8161d"/>
+  <text x="40" y="34" fill="#8b0f14" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700">06</text>
+</svg>
